@@ -17,6 +17,7 @@ from concurrent.futures import Future
 from contextlib import contextmanager
 import inspect
 import os.path
+import re
 import socket
 import time
 from typing import (Any, Callable, Dict, Generator, List, Optional, Sequence,
@@ -282,7 +283,7 @@ def compute_name() -> str:
     if progname is None:
         return 'gdb/noname'
     else:
-        return 'gdb/' + progname.split('/')[-1]
+        return 'gdb/' + re.split(r'(/|\\)', progname)[-1]
 
 
 def start_trace(name: str) -> None:
@@ -1065,14 +1066,9 @@ def ghidra_trace_put_inferiors(*, is_mi: bool, **kwargs) -> None:
         put_inferiors()
 
 
-def put_available(availables: Optional[List[util.Available]] = None) -> List[util.Available]:
+def put_available() -> List[util.Available]:
     trace = STATE.require_trace()
-    inf = gdb.selected_inferior()
-    if availables is None:
-        try:
-            availables = util.AVAILABLE_INFO_READER.get_availables()
-        except Exception:
-            availables = []
+    availables = util.AVAILABLE_INFO_READER.get_availables()
     keys = []
     for proc in availables:
         ppath = AVAILABLE_PATTERN.format(pid=proc.pid)
@@ -1396,6 +1392,8 @@ def put_threads() -> None:
         tobj.set_value('_short_display', f'[{inf.num}.{t.num}:{tidstr}]')
         tobj.set_value('_display', compute_thread_display(t))
         tobj.insert()
+        stackobj = trace.create_object(tpath+".Stack")
+        stackobj.insert()
     trace.proxy_object_path(
         THREADS_PATTERN.format(infnum=inf.num)).retain_values(keys)
 

@@ -316,6 +316,19 @@ public class ProgramBuilder {
 		});
 	}
 
+	public MemoryBlock createMappedMemory(String name, String address, int size,
+			String mappedAddress) {
+		return tx(() -> {
+			Address blockAddress = addr(address);
+			Address mapAddress = addr(mappedAddress);
+			Memory memory = program.getMemory();
+			MemoryBlock block =
+				memory.createByteMappedBlock(name, blockAddress, mapAddress, size, false);
+			return block;
+		});
+
+	}
+
 	public MemoryBlock createUninitializedMemory(String name, String address, int size) {
 
 		return tx(() -> {
@@ -864,6 +877,18 @@ public class ProgramBuilder {
 		else {
 			setBytes(address, bytes);
 		}
+	}
+
+	/**
+	 * Creates a non-null-terminated ascii string at the given address 
+	 * @param address the address
+	 * @param string the string 
+	 * @return the new data
+	 * @throws Exception if there is an exception
+	 */
+	public Data createString(String address, String string) throws Exception {
+		return createString(address, string, StandardCharsets.US_ASCII, false,
+			StringDataType.dataType);
 	}
 
 	public Data createString(String address, String string, Charset charset, boolean nullTerminate,
