@@ -82,7 +82,7 @@ public class Omf51Loader extends AbstractProgramWrapperLoader {
 			MemoryBlockUtils.createFileBytes(program, settings.provider(), monitor);
 		AbstractOmfRecordFactory factory = new Omf51RecordFactory(settings.provider());
 		try {
-			List<OmfRecord> records = OmfUtils.readRecords(factory);
+			List<OmfRecord> records = OmfUtils.readRecords(factory, settings.log());
 			Map<Integer, Address> segmentToAddr =
 				processMemoryBlocks(program, fileBytes, records, log, monitor);
 			Map<Integer, Address> extIdToAddr =
@@ -479,5 +479,10 @@ public class Omf51Loader extends AbstractProgramWrapperLoader {
 	@Override
 	public String getName() {
 		return OMF51_NAME;
+	}
+
+	@Override
+	public Collection<String> getAssociatedFileExtensions() {
+		return List.of("obj");
 	}
 }

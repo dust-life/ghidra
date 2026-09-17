@@ -416,6 +416,9 @@ public class GhidraSourceBundle extends GhidraBundle {
 				buildErrors.remove(newSourceFile);
 			}
 		}
+
+		// remove errors for missing source files
+		buildErrors.keySet().removeIf(sourceFile -> !sourceFile.exists());
 	}
 
 	private boolean stillHasErrors(ResourceFile newSourceFile) {
@@ -630,7 +633,7 @@ public class GhidraSourceBundle extends GhidraBundle {
 			if (bundle != null) {
 				bundleHost.deactivateSynchronously(bundle);
 			}
-			return anythingChanged | wipeBinDir();
+			return anythingChanged || wipeBinDir();
 		}
 		catch (IOException | GhidraBundleException e) {
 			Msg.showError(this, null, "Source bundle clean error",
@@ -838,11 +841,12 @@ public class GhidraSourceBundle extends GhidraBundle {
 		for (Diagnostic<? extends JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {
 			String error = diagnostic.toString() + "\n";
 			writer.write(error);
-			ResourceFileJavaFileObject sourceFileObject =
-				(ResourceFileJavaFileObject) diagnostic.getSource();
-			ResourceFile sourceFile = sourceFileObject.getFile();
-			buildError(sourceFile, error); // remember all errors for this file
-			filesWithErrors.add(sourceFileObject);
+			JavaFileObject obj = diagnostic.getSource();
+			if (obj instanceof ResourceFileJavaFileObject sourceFileObject) {
+				ResourceFile sourceFile = sourceFileObject.getFile();
+				buildError(sourceFile, error); // remember all errors for this file
+				filesWithErrors.add(sourceFileObject);
+			}
 		}
 		for (ResourceFileJavaFileObject sourceFileObject : filesWithErrors) {
 			if (sourceFiles.remove(sourceFileObject)) {

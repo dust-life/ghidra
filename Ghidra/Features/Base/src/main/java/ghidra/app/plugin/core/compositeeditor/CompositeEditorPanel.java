@@ -942,13 +942,20 @@ public abstract class CompositeEditorPanel<T extends Composite, M extends Compos
 
 	@Override
 	public void statusChanged(String message, boolean beep) {
-		if ((message == null) || (message.length() == 0)) {
+		if (StringUtils.isBlank(message)) {
 			message = " ";
 		}
+
 		setStatus(message);
 		if (beep) {
 			getToolkit().beep();
 		}
+	}
+
+	protected void goToRow(int row) {
+		table.getSelectionModel().setSelectionInterval(row, row);
+		Rectangle cellRect = table.getCellRect(row, 0, true);
+		table.scrollRectToVisible(cellRect);
 	}
 
 	void search(String searchText, boolean forward) {
@@ -956,11 +963,8 @@ public abstract class CompositeEditorPanel<T extends Composite, M extends Compos
 		Integer row = forward ? findForward(searchText) : findBackward(searchText);
 
 		if (row != null) {
-			table.getSelectionModel().setSelectionInterval(row, row);
-			Rectangle cellRect = table.getCellRect(row, 0, true);
-			table.scrollRectToVisible(cellRect);
+			goToRow(row);
 		}
-
 	}
 
 	private Integer findForward(String text) {
@@ -1085,6 +1089,10 @@ public abstract class CompositeEditorPanel<T extends Composite, M extends Compos
 		clsm.setSelectionInterval(viewColumn, viewColumn);
 	}
 
+//=================================================================================================
+// Inner Classes
+//=================================================================================================	
+
 	private class ComponentStringCellEditor extends ComponentCellEditor {
 		public ComponentStringCellEditor(JTextField textField) {
 			super(textField);
@@ -1145,8 +1153,8 @@ public abstract class CompositeEditorPanel<T extends Composite, M extends Compos
 		@Override
 		public boolean stopCellEditing() {
 			try {
-				model.validateComponentName(table.getEditingRow(),
-					((JTextComponent) getComponent()).getText());
+				String newName = ((JTextComponent) getComponent()).getText();
+				model.validateComponentName(table.getEditingRow(), newName);
 				fireEditingStopped();
 				return true;
 			}
@@ -1538,5 +1546,6 @@ public abstract class CompositeEditorPanel<T extends Composite, M extends Compos
 		}
 
 	}
+
 
 }

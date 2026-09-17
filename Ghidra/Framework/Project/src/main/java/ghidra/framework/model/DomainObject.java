@@ -158,7 +158,7 @@ public interface DomainObject {
 	 * Saves (i.e., serializes) the current content to a packed file.
 	 * @param outputFile packed output file
 	 * @param monitor progress monitor
-	 * @throws IOException if an exception occurs
+	 * @throws IOException if an error occurs during operation
 	 * @throws CancelledException if the user cancels
 	 * @throws UnsupportedOperationException if not supported by object implementation
 	 */
@@ -244,6 +244,11 @@ public interface DomainObject {
 	 * @return the name
 	 */
 	public String getName();
+
+	/**
+	 * {@return the full path of the DomainFile associated with this domain object}
+	 */
+	public String getPath();
 
 	/**
 	 * Set the name for this domain object.
@@ -454,6 +459,7 @@ public interface DomainObject {
 	 * @return the result returned by the supplier
 	 * @throws E any exception that may be thrown in the given callback
 	 */
+
 	public default <E extends Exception, T> T withTransaction(String description,
 			ExceptionalSupplier<T, E> supplier) throws E {
 		T t = null;

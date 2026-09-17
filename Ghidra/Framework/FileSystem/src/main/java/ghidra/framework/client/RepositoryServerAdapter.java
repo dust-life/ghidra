@@ -60,6 +60,11 @@ public class RepositoryServerAdapter {
 
 	/**
 	 * Construct a repository server interface adapter.
+	 * <p>
+	 * NOTE: It is important that this method only be invoked for known/trusted Ghidra Servers.
+	 * This instantiation will add the specified server to the cached Allow List to facilitate
+	 * future access to the server via a Ghidra URL.
+	 * 
 	 * @param server provides server connection data
 	 */
 	RepositoryServerAdapter(ServerInfo server) {
@@ -70,6 +75,7 @@ public class RepositoryServerAdapter {
 	/**
 	 * Construct a repository server interface adapter.
 	 * @param serverHandle associated server handle (reconnect not supported)
+	 * @param serverInfoString additional server information (e.g., URL)
 	 */
 	protected RepositoryServerAdapter(RepositoryServerHandle serverHandle,
 			String serverInfoString) {
@@ -146,6 +152,10 @@ public class RepositoryServerAdapter {
 			}
 		}
 
+		// Allow future server access when server is directly accessed
+		UrlAllowListManager.updateAccess("ghidra", server.getServerName(), server.getPortNumber(),
+			true);
+
 		lastConnectError = null;
 		try {
 			try {
@@ -199,7 +209,7 @@ public class RepositoryServerAdapter {
 				lastConnectError = t;
 			}
 			Msg.showError(this, null, "Server Error",
-				"An error occurred on the server (" + serverInfoStr + ").\n" + msg, e);
+				"An error occurred on the server (" + serverInfoStr + ").\n" + msg);
 		}
 		catch (IOException e) {
 			String err = e.getMessage();
@@ -208,8 +218,8 @@ public class RepositoryServerAdapter {
 			}
 			String msg = err != null ? err : e.toString();
 			Msg.showError(this, null, "Server Error",
-				"An error occurred while connecting to the server (" + serverInfoStr + ").\n" + msg,
-				e);
+				"An error occurred while connecting to the server (" + serverInfoStr + ").\n" +
+					msg);
 		}
 		throw new NotConnectedException("Not connected to repository server", lastConnectError);
 	}

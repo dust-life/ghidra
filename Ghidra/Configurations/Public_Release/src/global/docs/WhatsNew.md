@@ -15,20 +15,29 @@ applied Ghidra SRE capabilities to a variety of problems that involve analyzing 
 generating deep insights for NSA analysts who seek a better understanding of potential
 vulnerabilities in networks and systems.
 
-# What's New in Ghidra 12.0
+# What's New in Ghidra 12.2
 This release includes new features, enhancements, performance improvements, quite a few bug fixes,
 and many pull-request contributions. Thanks to all those who have contributed their time, thoughts,
 and code. The Ghidra user community thanks you too!
-	
+
+Major changes have been made to Ghidra Server and BSim PostgreSQL Server deployment and TLS/SSL
+certificate requirements.  TLS/SSL server authentication is now enforced for all client/server
+connections.  See __TLS/SSL Client/Server Changes__ below.
+
 ### The not-so-fine print: Please Read!
-Ghidra 12.0 is fully backward compatible with project data from previous releases. However, programs
-and data type archives which are created or modified in 12.0 will not be usable by an earlier Ghidra
+Ghidra 12.2 is fully backward compatible with project data from previous releases. However, programs
+and data type archives which are created or modified in 12.2 may not be usable by an earlier Ghidra
 version.
 
-**IMPORTANT:** Ghidra 12.0 requires, at minimum, JDK 21 to run.
+**IMPORTANT:** Jython support is not supported by default but is included with the release as an 
+extension. An extra step is required to install it.  If you have Ghidra Jython scripts, you must 
+either install the Jython Extension, convert your scripts to Python and run with PyGhidra, or 
+convert your scripts to JAVA.
+
+**IMPORTANT:** Ghidra 12.2 requires, at minimum, JDK 25 to run.
 
 **IMPORTANT:** To use the Debugger or do a full source distribution build, you will need Python3
-(3.9 to 3.13 supported) installed on your system.
+(3.9 to 3.14 supported) installed on your system.
 
 **NOTE:** There have been reports of certain features causing the XWindows server to crash. A fix
 for `CVE-2024-31083` in X.org software in April 2024 introduced a regression, which has been fixed
@@ -43,17 +52,7 @@ libraries and operating systems (e.g., CentOS 7.x) may also run into compatibili
 launching native executables such as the Decompiler and GNU Demangler which may necessitate a 
 rebuild of native components.
 
-**NOTE:** Ghidra Server: The Ghidra 12.0 server is compatible with Ghidra 11.3.2 and later Ghidra
-clients, although the presence of any newer link-files within a repository may not be handled properly
-by client versions prior to 12.0 which lack support for the new storage format.  Ghidra 12.0 clients
-that introduce new link-files into a project will not be able to add such files into version 
-control if connected to older Ghidra Server versions.
-
-**NOTE:** Ghidra Server: Due to potential Java version differences, it is 
-recommended that Ghidra Server installations older than 10.2 be upgraded. Those using 10.2 and newer
-should not need a server upgrade unless they need to work with link-files within a shared repository.
-	
-**NOTE:** Programs imported with a Ghidra beta version or code built directly from source code
+**NOTE:** Programs imported with a Ghidra Beta version or code built directly from source code
 outside of a release tag may not be compatible, and may have flaws that won't be corrected by using
 this new release.  Any programs analyzed from a beta or other local master source build should be
 considered experimental and re-imported and analyzed with a release version.
@@ -64,110 +63,177 @@ process that will provide better results than prior Ghidra versions.  You might 
 fresh import of any program you will continue to reverse engineer to see if the latest Ghidra 
 provides better results.
 
-## Project Data Link Files
-Support for link-files within a Ghidra Project has been significantly expanded with this release and
-with it a new file storage type has been introduced which can create some incompatibilities if
-projects and repositories containing such files are used by older version of Ghidra or the Ghidra 
-Server.
+**NOTE:** Ghidra Server: The Ghidra 12.2 server is compatible with older Ghidra 11.3.2 clients and 
+later, although the presence of any newer link-files within a repository may not be handled properly
+by client versions prior to 12.0, which lack support for the newer storage format.  Ghidra 12.1 
+clients require Ghidra Server version 12.1/12.0.5 or newer compatible version. 
 
-Previously, only external folder and file links were supported through the use of a Ghidra URL. With
-12.0 the ability to establish internal folder and file links has been introduced.  A new storage 
-format was adopted for link-files which avoids the use of a database and relies only on a 
-light-weight property file only. Internal project links also allow for either absolute or relative 
-links.  Due to Ghidra allowing a folder and file to have the same pathname, some ambiguities can 
-result for Ghidra URL usage.  It is highly recommended that the use of conflicting folder and file 
-pathnames be avoided.
+**NOTE:** Ghidra Server: Due to security fixes made to Ghidra and the Ghidra Server it is highly
+recommended that older installation versions be updated to this latest release.  To ensure 
+compatibility, older client version of Ghidra should also be upgraded.
+	
+## Security Related Fixes
 
-The use of internally linked folders and files allows batch import processing to more accurately
-reflect the native file-system and its use of symbolic links which allow for the same content to
-be referenced by multiple paths.  Allowing this within a Ghidra project can avoid the potential for
-importing content multiple times with the different paths and simply import once with additional 
-link-files which reference it.  How best to leverage links very much depends on the end-user's 
-needs and project file management preferences.  Special care must be taken when defining or 
-traversing link-files to avoid external and circular references.
+### TLS/SSL Client/Server Changes
+Ghidra Server and BSim PostgreSQL Server deployments now highly encourage the use of a CA-signed
+server certificate.  In addition, Ghidra clients will now enforce server-authentication
+for all SSL/TLS connections.  This was previously not the case with earlier versions of Ghidra.  
+This server-authentication also applies to accessing servers accessed via the loopback/localhost 
+interface, although the property `ghidra.disable.loopback.server.authentication` can be set `true` 
+in `support/launch.properties` file to disable such local server authentication for testing.
 
-Additional Ghidra API methods have been provided or refined on the following classes to leverage 
-link-files: `DomainFolder`, `DomainFile`, `LinkFile`, `LinkHandler`, `DomainFileFilter`, 
-`DomainFileIterator`, etc.
+A suitable keystore must be obtained from a CA signing-authority or a self-signed certificate file
+may be generated but is not preferred.  If needed, the new `server/certTool` command provided with 
+Ghidra may be used to assist with the keystore request and generation.  
 
-## Importer Filesystem Mirroring
-An option has been added to mirror the local filesystem when importing programs and their libraries.
-Programs and libraries that exist on the local filesystem as symbolic links will have both their 
-corresponding link file and resolved program file mirrored in the project. Filesystem mirroring
-can also be used in headless mode with the new `-mirror` command line option.
+Each client must ensure that trusted certificates are added to an appropriate trust store.
+Ghidra clients now support the use of OS managed certificate trust stores as well as default trust
+stores supplied with the Java installation.  For Windows and macOS, the system provided 
+`User Certificate Manager` may be launched from the Ghidra projct window 
+(Edit -> Manage Certificates...).  For Unix/Linux the property `ghidra.unix.default.cacerts` may be 
+optionally specified in `support/launch.properties` to identify a directory path where unencrypted 
+PEM or DER trusted certificate files may be added.  In the case of a server which uses a self-signed
+certificate, that certificate would need to be added by each client as a trusted certificate. 
+Otherwise, all the CA certificates in the server's CA-chain should be added if not already present.
 
-## PyGhidra
-PyGhidra 3.0.0 (compatible with Ghidra 12.0 and later) introduces many new Python-specific API 
-methods with the goal of making the most common Ghidra tasks quick and easy, such as opening a 
-project, getting a program, and running a GhidraScript. Legacy API functions such as 
-`pyghidra.open_program()` and `pyghidra_run_script()` have been deprecated in favor of the new 
-methods, which are outlined at https://pypi.org/project/pyghidra.
+#### Ghidra Server
+If the `server/server.conf` file does not specify a `ghidra.keystore` the server will continue to 
+auto-generate a temporary self-signed server certificate. However, when this occurs the server will 
+now only listen for loopback connections on the localhost interface.  If remote connections are 
+required, a proper keystore must be specified.  If local access only is acceptable, a Ghidra client
+may set the `ghidra.disable.loopback.server.authentication=true` property in the 
+`support/launch.properties` file with caution.  Otherwise, a keystore must be generated.
 
-The default Python scripting engine has been changed in Ghidra 12.0 from Jython to PyGhidra.
-Existing Jython scripts will need to include the `# @runtime Jython` script header in order to
-continue running within the Jython environment.
+See `server/svrREADME.md` or `server/svrREADME.html` for more details.
 
-## Z3 Concolic Emulation and Symbolic Summary
-We've added an experimental Z3-based symbolic emulator, which runs as an "auxiliary" domain to the 
-concrete emulator, effectively constructing what is commonly called a "concolic" emulator. The 
-symbolic emulator creates Z3 expressions and branching constraints, but it only follows the path 
-determined by concrete emulation. This is most easily accessed by installing the "SymbolicSummaryZ3"
-extension (**File -> Install Extensions**) and then enabling the `Z3SummaryPlugin` in the 
-Debugger or Emulator tool, which includes a GUI for viewing and sorting through the results. The Z3
-emulator requires z3-4.13.0, available from https://github.com/Z3Prover/z3. Other versions may work,
-but our current test configuration uses 4.13.0. Depending on the release and your platform, the
-required libraries may be missing or incompatible. If this is the case, you will need to download
-Z3, or build it from source with Java bindings, and install the libraries into 
-`Ghidra/Extensions/SymbolicSummaryZ3/os/<platform>/`.
+#### BSim PostgreSQL Server
+A BSim PostgreSQL data directory that was configured with a previous version of Ghidra will not have
+any new constraints other than client connections now performing server authentication.  If using a 
+self-signed certificate it will need to be added to client trust stores or a properly signed server 
+certificate/keystore obtained.
 
-## Emulation API
-The `PcodeEmulator` and related API has undergone substantial changes in preparation for integrating
-our JIT-accelerated emulator into the GUI. Please see the **Notable API Changes** section of our 
-[Change History](ChangeHistory.md). The goal is to facilitate integration by composition; whereas, 
-it had previously required inheritance, which is now considered poor design. Essentially, we've 
-introduced a set of callbacks that integrators can use to detect when certain things have happened
-in emulation, as well as offer some control of machine-state behavior; e.g., to facilitate lazily 
-loading from a snapshot.
+New BSim PostgreSQL deployments should specify a server keystore when initialized.  If a keystore
+is not specified, the server will use an auto-generated self-signed certificate which will need to 
+be added to client trust stores.  When either a keystore is not specified, or the `trust` 
+authentication mode is used (`--auth=trust`), the server will be configured to listen to loopback 
+connections on the localhost interface only.
 
-Extensions that currently integrate via inheritance can continue to do so, but will still need to
-apply some minimal changes to satisfy interface and constructor changes. The developers of such
-extensions ought to consider porting their integrations to the compositional/callback-based
-mechanism. A careful assessment may be required depending on the nature of the extension. Extensions
-that merely integrate with emulation should consider the compositional/callback-based mechanism. 
-Extensions that incorporate new domains (e.g. Z3) or novel behaviors (e.g. JIT) should continue 
-using inheritance.
+See Ghidra GUI Help Content related to BSim Database Configuration and `bsim_ctl` for more details.
 
-## Data Graph
-Added a new data graph showing data relationships defined by references from one in memory defined data item
-to another. The data graph can be displayed by clicking on a data item in the listing and
-invoking the data graph action (**ctrl-g** or from the popup menu **data -> display data graph**). This action
-will create a new data graph displaying the selected data item and its contents. From
-that node, the graph can be expanded by following from or to references to that data item.
+### Ghidra Client - Server Allow List
+Ghidra client-side applications will now impose the use of a __Server Allow List__ mechanism to 
+help mitigate unintended server access.  This mechanism is currently used to restrict:
 
-## Hide Function Variables
-Added the ability to toggle the display of function variables (parameters and locals) within
-the Code Browser Listing just below the function signature. The Variables display can be turned 
-on/off globally via the popup menu toggle action (**Function -> Show/Hide All Variables**) or for
-individual functions via an adjacent expand/collapse(+/-) icon.
+- Ghidra Server URL connections to unknown servers.  Explicit repository access via a shared project
+  will cause that server to be implicitly added to the __Server Allow List__, and
+- Clicking on URL links (e.g., http/https) within Ghidra listing comment annotations.
 
-## GhidraGo URL
-Did you know Ghidra supports embedding URL links in web pages?  After setting up GhidraGo in
-your preferred web browser and adding the GhidraGo plugin into Ghidra, clicking on a Ghidra URL link
-will start Ghidra, open the program either locally or in a multi-user project, and then navigate
-to the specified address in the specified program.  A Ghidra remote URL looks something like
-(**ghidra://myrepo.org:13100/perf/9305e1d039/busybox_aarch64_fc0bdbc**).  You can provide
-just the project path or include a path all the way to an address/symbol in a program within the
-project.  See the Ghidra Help under GhidraGo for setup and more information.
+See `analyzeHeadlessREADME.md` for information related to use of __analyzeHeadless__ and the new
+__support/updateServerAllowList__ command which can be used to manage the __Server Allow List__
+entries.
 
-## Processors
-The NDS32, and RISCV variant AndeStar v5 processors have been added.  In addition the RISCV processor
-has been re-factored to better handle RISCV custom extensions and the csreg register definitions have been
-moved into a separate memory space.  The benefit of having an actual memory space for special function
-registers is they can be seen, named, references created to them, data types applied at the location,
-as well as default values supplied for a given binary sample.  We plan to do the same for other processors
-such as the PowerPC.  There have also been numerous extensions and fixes added to the
-AArch64, 8051, LoongArch, SuperH, Arm, Xtensa, x86, 68k, and many other processors.  Thanks for all
-the community contributions!
+## BSim PostgreSQL Deployment and Control (bsim_ctl)
+Extensive changes have been made to the BSim PostgreSQL control script.  New `bsim_ctl` commands
+have been added for initializing and reconfiguring a server deployment (`init`, `configure`).  Once
+a deployment is configured, the following commands are used to manage its state: `start`, `stop`, 
+and `restart`.  In addition, the ability to install as a Linux Service has been added using the 
+commands `install-service` and `uninstall-service`. A new command `listusers` has also been added to
+aid with user management.
+
+When initializing or configuring a PostgreSQL server, `password` authentication mode is now the 
+default if the `--auth` option is not specified.  This differs from previous releases which 
+defaulted to `trust` authentication.  In general, use of `trust` authentication should be avoided.
+
+## JDK 25
+Ghidra now requires JDK 25 or later to run. Developing against JDK 25 has enabled the use of several
+new language features. Some of the new features that Ghidra script and extension developers may now
+use are outlined below:
+- [Foreign Function & Memory API](https://openjdk.org/jeps/454)
+- [Unnamed Variables & Patterns](https://openjdk.org/jeps/456)
+- [Markdown Documentation Comments](https://openjdk.org/jeps/467)
+- [Class-File API](https://openjdk.org/jeps/484)
+- [Stream Gatherers](https://openjdk.org/jeps/485)
+- [Scoped Values](https://openjdk.org/jeps/506)
+- [Flexible Constructor Bodies](https://openjdk.org/jeps/513)
+
+## Processor Module changes since 12.1
+There have been numerous processor extensions and fixes added. These may cause an opened program to 
+upgrade and re-disassemble.
+
+- 8051/CIP-51: Added CIP-51 processor support and later corrected its language definition.
+- AArch64: Corrected `stlrb`/`stlrh` operand sizes, load/store operand formatting, NEON scalar 
+  zero-extension, and interrupt-mask sizing for `mrs IPSR`.
+- ARM/Thumb/NEON: Added missing ARM v8-M instructions; corrected `branchWritePC`, `ldrsh.w`, 
+  `ldrsb.w`, `msr apsr`, `sev.w`, and several NEON `vmov`/`vmvn` behaviors.
+- AVR32: Corrected `ICALL` behavior when `rd0` is the link register.
+- HCS12: Corrected disassembly of the `BRN` instruction.
+- Hexagon: Added the processor module with Sleigh crossbuild support, then substantially revised it
+  to fix reserved bits, paired-vector swap mode, missing p-code, and instructions through V79; 
+  quad-vector instructions remain unsupported.
+- M68000/CPU32: Added a CPU32 variant and fixed `movem.w` incrementing by four bytes instead of two.
+- MCS-96: Corrected the carry-flag calculation for `CMPL`.
+- MIPS/MIPS16e: Corrected signed-offset handling, `movn`/`movz` operand order, and MIPS16e language 
+  variant tags.
+- NDS32: Corrected disassembly of `fdiv` and `fmul`.
+- PIC-18: Corrected disassembly of addressing modes whose destination is a banked register.
+- PowerPC/e500mc: Added PowerPC 3.0B/3.0C instructions, corrected the signed offset for `LQ`, and 
+  fixed the e500mc stack-parameter offset.
+- RISC-V: Corrected writes to constants, 16-bit operand handling, and divide/remainder emulation 
+  when the divisor is zero.
+- RH850/V850: Added `RH850G3` instruction support to the V850 language module.
+- SPARC V9: Made register display formatting more consistent.
+- SuperH: Added an instruction index and corrected the missing return address for the SuperH4 `bsr` 
+  instruction.
+- TriCore: Reworded the processor description and corrected subc carry-flag handling.
+- x86: Added missing standard and `GFNI` instructions and `AVX` semantics; corrected instruction 
+  semantics, overflow-flag calculations, `REX`/`AVX-512` handling, 32-bit partial-register zeroing, 
+  segment-register moves, RIP-relative addressing, immediate masking, shift counts, and several 
+  instruction decodings.
+
+## Data Types
+Support has been added for integer datatypes in the C99 standard: `int8_t`, `uint8_t`, 
+`int16_t`, `uint16_t`, `int64_t`, `uint64_t`, `intptr_t`, `uintptr_t`. The CParser, PDB and DWARF 
+now leverage these new BuiltIn datatypes as well as related typedefs for improved portability across
+target architectures.
+
+## Beta support for "Timeless Debugging"
+We've completed several enhancements to the Debugger to better support "timeless" or "time-travel" 
+debugging. This includes a native tool, based on Intel PIN, to capture execution traces in a format 
+based on TENET. This format has a corresponding importer to load it into Ghidra's Debugger for 
+further analysis. Three new UI components are included to aide in that analysis:
+
+1. A breakpoint timeline, which displays hits for each breakpoint, color coded by kind (Execute, 
+   Read, Write). Clicking a colored box navigates to the snapshot of the hit.
+2. A dynamic call tree, which displays the execution history as a series of function calls, each 
+   subroutine displayed as a child of its run-time parent. Call, Returns, and Tail Calls are 
+   displayed, as observed. Clicking an item navigates to the snapshot of the observed call or 
+   return.
+3. A variable viewer, which tabulates all local variables known to the Listing and Decompiler along 
+   with their storage, values, types, and typed-values.
+
+These views can also be used with live Debugger targets, but with some caveats.
+- To record a trace using PIN, see `Ghidra/Debug/Debugger-importers/data/TenetPlusPlus_PinTool`
+- To enable the UI components, use **File &rarr; Configure** from the Debugger tool and open the 
+  Experimental category.
+- To import the Trace, use **File &rarr; Import** from the Debugger tool. You must first import the
+  program image in the usual fashion, if you have not already. When importing the Trace, click
+  Options and associate it with the image.
+
+## Accessibility
+We've enhanced overall accessibility by optimizing focus and navigation across key interfaces. These
+updates include smarter default focus behaviors in the New Project Wizard and the help viewer, along
+with resolved accessibility issues in plugin configuration dialogs and the action chooser. Screen
+reader support has been improved for both the Listing and Byte Viewers, and a new keyboard shortcut 
+(Ctrl-E) has been introduced to allow users to easily toggle focus between the options tree and the 
+active editor panel.
+
+## Speed and memory use improvements
+Read/Write locks have been added to program database access, including the data base cache. These 
+changes, in theory, have improved the overall performance of multi-threaded access to the 
+database-backed Program API.
+
+In addition, Ghidra now runs Java with [Compact Object Headers](https://openjdk.org/jeps/519) to 
+reduce memory usage.
 
 ## Additional Bug Fixes and Enhancements
 Numerous other new features, improvements, and bug fixes are fully listed in the 

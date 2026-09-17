@@ -148,19 +148,23 @@ public class InformationBlock {
 	/**
 	 * Supports long names
 	 */
-	public final static byte OTHER_FLAGS_SUPPORTS_LONG_NAMES = (byte) 0x00;
+	public final static byte OTHER_FLAGS_SUPPORTS_LONG_NAMES = (byte) 0x01;
 	/**
 	 * Protected mode
 	 */
-	public final static byte OTHER_FLAGS_PROTECTED_MODE = (byte) 0x01;
+	public final static byte OTHER_FLAGS_PROTECTED_MODE = (byte) 0x02;
 	/**
 	 * Proportional font
 	 */
-	public final static byte OTHER_FLAGS_PROPORTIONAL_FONT = (byte) 0x02;
+	public final static byte OTHER_FLAGS_PROPORTIONAL_FONT = (byte) 0x04;
 	/**
 	 * Gangload area
 	 */
-	public final static byte OTHER_FLAGS_GANGLOAD_AREA = (byte) 0x04;
+	public final static byte OTHER_FLAGS_GANGLOAD_AREA = (byte) 0x08;
+	/**
+	 * WLO application
+	 */
+	public final static byte OTHER_FLAGS_WLO_APP = (byte) 0x80;
 
 	private short ne_magic;        // Magic number
 	private byte ne_ver;           // Version number
@@ -194,10 +198,10 @@ public class InformationBlock {
 	private short ne_swaparea;     // Minimum code swap area size
 	private short ne_expver;       // Expected windows version number
 
-	InformationBlock(BinaryReader reader, short index)
+	InformationBlock(BinaryReader reader, int index)
 			throws InvalidWindowsHeaderException, IOException {
 		long oldIndex = reader.getPointerIndex();
-		reader.setPointerIndex(Short.toUnsignedInt(index));
+		reader.setPointerIndex(index);
 
 		ne_magic = reader.readNextShort();
 
@@ -333,6 +337,9 @@ public class InformationBlock {
 	 */
 	public String getOtherFlagsAsString() {
 		StringBuffer buffer = new StringBuffer();
+		if ((ne_flagsothers & OTHER_FLAGS_WLO_APP) != 0) {
+			buffer.append(TAB + "WLO Application" + "\n");
+		}
 		if ((ne_flagsothers & OTHER_FLAGS_GANGLOAD_AREA) != 0) {
 			buffer.append(TAB + "Gangload Area" + "\n");
 		}

@@ -50,6 +50,7 @@ import ghidra.program.model.address.Address;
 import ghidra.program.model.listing.Program;
 import ghidra.program.util.ProgramLocation;
 import ghidra.pty.*;
+import ghidra.pty.ShellUtils.Shell;
 import ghidra.trace.model.Trace;
 import ghidra.trace.model.TraceLocation;
 import ghidra.util.*;
@@ -180,7 +181,7 @@ public abstract class AbstractTraceRmiLaunchOffer implements TraceRmiLaunchOffer
 		};
 		mappingService.addChangeListener(result.listener);
 		result.check();
-		result.exceptionally(ex -> {
+		result.exceptionally(_ -> {
 			mappingService.removeChangeListener(result.listener);
 			return null;
 		});
@@ -228,11 +229,12 @@ public abstract class AbstractTraceRmiLaunchOffer implements TraceRmiLaunchOffer
 	}
 
 	protected void saveState(SaveState state) {
-		plugin.writeToolLaunchConfig(getConfigName(), state);
 		if (program == null) {
-			return;
+			plugin.writeToolLaunchConfig(getConfigName(), state);
 		}
-		plugin.writeProgramLaunchConfig(program, getConfigName(), state);
+		else {
+			plugin.writeProgramLaunchConfig(program, getConfigName(), state);
+		}
 	}
 
 	protected void saveLauncherArgs(Map<String, ValStr<?>> args,
@@ -475,7 +477,7 @@ public abstract class AbstractTraceRmiLaunchOffer implements TraceRmiLaunchOffer
 			parent.getInputStream(), parent.getOutputStream());
 
 		List<String> withoutPath = ShellUtils.removePath(commandLine);
-		terminal.setSubTitle(ShellUtils.generateLine(withoutPath));
+		terminal.setSubTitle(ShellUtils.generateLine(withoutPath, Shell.DISPLAY));
 		TerminalListener resizeListener = new TerminalListener() {
 			@Override
 			public void resized(short cols, short rows) {
@@ -490,8 +492,19 @@ public abstract class AbstractTraceRmiLaunchOffer implements TraceRmiLaunchOffer
 		terminal.addTerminalListener(resizeListener);
 
 		env.put("TERM", "xterm-256color");
-		PtySession session =
-			pty.getChild().session(commandLine.toArray(String[]::new), env, workingDirectory);
+		PtySession session;
+		try {
+			session =
+				pty.getChild().session(commandLine.toArray(String[]::new), env, workingDirectory);
+		}
+		catch (Throwable t) {
+			terminal.terminated(-1);
+			pty.close();
+			for (TerminalSession ss : subordinates) {
+				ss.terminate();
+			}
+			throw t;
+		}
 
 		Thread waiter = new Thread(() -> {
 			try {
@@ -718,6 +731,7 @@ public abstract class AbstractTraceRmiLaunchOffer implements TraceRmiLaunchOffer
 				 * terminates early
 				 */
 				monitor.setMessage("Waiting for connection");
+				monitor.addCancelledListener(acceptor::cancel);
 				connection = acceptOrSessionEnds(acceptor, backEnd);
 				connection.registerTerminals(sessions.values());
 				monitor.increment();

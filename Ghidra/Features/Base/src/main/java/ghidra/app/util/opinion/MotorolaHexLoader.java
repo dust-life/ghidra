@@ -46,7 +46,7 @@ public class MotorolaHexLoader extends AbstractProgramLoader {
 	}
 
 	@Override
-	public boolean supportsLoadIntoProgram() {
+	public boolean supportsLoadIntoProgram(Program program) {
 		return true;
 	}
 
@@ -77,10 +77,12 @@ public class MotorolaHexLoader extends AbstractProgramLoader {
 	}
 
 	static boolean isPossibleHexFile(ByteProvider provider) {
+		final int MAX_BLANK_LINES = 100;
 		try (BoundedBufferedReader reader =
 			new BoundedBufferedReader(new InputStreamReader(provider.getInputStream(0)))) {
+			int i = 0;
 			String line = reader.readLine();
-			while (line.matches("^\\s*$")) {
+			while (i++ < MAX_BLANK_LINES && line.isBlank()) {
 				line = reader.readLine();
 			}
 			return line.matches("^[S:][0-9a-fA-F]+$");
@@ -435,18 +437,13 @@ public class MotorolaHexLoader extends AbstractProgramLoader {
 		ArrayList<Option> list = new ArrayList<Option>();
 
 		if (loadIntoProgram) {
-			list.add(new Option(OPTION_NAME_IS_OVERLAY, isOverlay));
-			list.add(new Option(OPTION_NAME_BLOCK_NAME, blockName));
+			list.add(Option.newBoolean(OPTION_NAME_IS_OVERLAY).value(isOverlay).build());
+			list.add(Option.newString(OPTION_NAME_BLOCK_NAME).value(blockName).build());
 		}
 		else {
 			isOverlay = false;
 		}
-		if (baseAddr == null) {
-			list.add(new Option(OPTION_NAME_BASE_ADDRESS, Address.class));
-		}
-		else {
-			list.add(new Option(OPTION_NAME_BASE_ADDRESS, baseAddr));
-		}
+		list.add(Option.newAddress(OPTION_NAME_BASE_ADDRESS).value(baseAddr).build());
 		return list;
 	}
 
