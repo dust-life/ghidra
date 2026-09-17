@@ -2,7 +2,10 @@ name: Build decompile (linux arm64)
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "17 20 * * *" # Daily at 04:17 Asia/Shanghai
   push:
+    branches: [master]
     paths:
       - ".github/workflows/build-decompile-linux-arm64.yml"
       - "Ghidra/Features/Decompiler/**"
@@ -10,19 +13,66 @@ on:
       - "GPL/nativePlatforms.gradle"
       - "gradle/**"
       - "build.gradle"
+      - "gradle.properties"
+      - "Ghidra/application.properties"
       - "settings.gradle"
 
 permissions:
   contents: write
 
+concurrency:
+  group: decompile-linux-arm64
+  cancel-in-progress: false
+
 jobs:
+  sync:
+    name: Sync upstream
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      sha: ${{ steps.sync.outputs.sha }}
+      changed: ${{ steps.sync.outputs.changed }}
+    steps:
+      - name: Sync upstream and select build commit
+        id: sync
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          before=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/master" --jq '.object.sha')
+          gh api --method POST "repos/$GITHUB_REPOSITORY/merge-upstream" -f branch=master
+          after=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/master" --jq '.object.sha')
+          echo "sha=$after" >> "$GITHUB_OUTPUT"
+          if [[ "$before" != "$after" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Upstream merged; building commit $after." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            if [[ "$GITHUB_EVENT_NAME" == "schedule" ]]; then
+              echo "Already up to date; scheduled build skipped." >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "Already up to date; manual build requested for $after." >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+
   build:
+    needs: sync
+    if: github.event_name != 'schedule' || needs.sync.outputs.changed == 'true'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     env:
       RELEASE_TAG: decompile-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.sync.outputs.sha }}
       - name: Set up JDK 25
         uses: actions/setup-java@v4
         with:
